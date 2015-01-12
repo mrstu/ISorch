@@ -1,0 +1,26 @@
+
+# cfgsim renamed for each run (GCM,period)
+## --> PROJBASE 
+## --> RUNNAME
+## --> SIMID
+
+CFGSIM=cfg.sim.bsh
+source $CFGSIM
+
+optype="fldmean"
+numcores=16
+memGB=40
+
+JOB_MODULES="icc_14.0.2 netcdf_4.3.1.1-icc_14.0.2"
+binpath=/sw/contrib/hydro/bin
+
+HYAK_SLOTS=$numcores
+NODE_REQ="nodes=1:ppn="$numcores",feature="$numcores"core,mem="$memGB"gb"
+WALL_REQ="03:55:00"
+USER_EMAIL="mrstu@u.washington.edu"
+
+CONTROL=$PROJBASE/control_ulm-fldmean/$RUNNAME/$SIMID #CONTROL_FLDMEAN
+BINWRAPPER=$PROJBASE/worker_tilesumm.bsh
+
+#TODO: NOT SURE HOW TO HANDLE THIS
+#CFG=$PWD/cfg_tilesumm/cfg_tilesumm_$RUNNAME"_"$SIMID.bsh

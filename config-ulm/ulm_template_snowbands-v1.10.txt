@@ -1,0 +1,70 @@
+
+      !------------------------------------------------------------------------
+      ! If PARAM_TYPE is "netcdf", then LSC should contain the name of the
+      ! netcdf-format file containing model parameters, LREAL8 should be .FALSE.,
+      ! and MASK_FILE through SNOALB_FILE should be "".
+      !
+      ! Otherwise, LSC should be "", MASK_FILE should be the name of the file
+      ! containing the land mask (ascii always), and NSOIL_FILE through
+      ! SNOALB_FILE should be the names of the files (ascii or bin) containing
+      ! model parameters.
+      !
+      ! For ascii param files, if there are multiple layers or times (i.e. 3d data),
+      ! each layer should be stored in a separate ascii file.  All the files
+      ! corresponding to that parameter should have the same base name with the
+      ! layer number appended to it (e.g. albedo_ldas.asc01, albedo_ldas.asc02).
+      ! In this case, the base name (e.g. albedo_ldas.asc) should be listed here
+      ! as the parameter file name.  The model driver code will then look for the
+      ! individual files having that base name.
+      !
+      ! LREAL8 should = .TRUE. when PARAM_TYPE = "bin" and the variable type
+      ! is real*8.
+      !
+      ! The variable MODEL_TYPE specifies which extensions should be used for
+      ! snow,soil,veg,etc...They are:
+      ! 0: Noah model
+      ! 1: SAC soil
+      ! 2: PEMB snow model (Anderson)
+      ! 3: SAC soil, with PEMB snow model
+      ! For any option using SAC (1 and 3), MAXNSOIL must be set to 2, else 4 
+      PARAM_TYPE='ascii'  ! Format of parameter files; can be one of "ascii","bin","netcdf"
+      LSC=''
+      LREAL8=.FALSE.
+      MASK_FILE='xxTILEPARMSxx/tiled_xxTILEIDxx_mask_order_pnw_0.0625.asc'   
+      NSOIL_FILE='xxTILEPARMSxx/tiled_xxTILEIDxx_soil_layers.PNW.asc'
+      SOILDEPTH_FILE='xxTILEPARMSxx/tiled_xxTILEIDxx_soil_depth.PNW.asc'
+      SOILTYP_FILE='xxTILEPARMSxx/tiled_xxTILEIDxx_soil_type_noah_dgsmw.asc'
+      SLOPETYP_FILE='xxTILEPARMSxx/tiled_xxTILEIDxx_slope_type_0.0625_PNW.asc'
+      TBOT_FILE='xxTILEPARMSxx/tiled_xxTILEIDxx_soil_lower_T.PNW.asc'
+      VEGTYP_FILE='xxTILEPARMSxx/tiled_xxTILEIDxx_veg_type_0.0625_PNW.asc'
+      SHDFAC_FILE='xxTILEPARMSxx/tiled_xxTILEIDxx_gfrac_0.0625_PNW.asc'
+      ALBEDO_FILE='xxTILEPARMSxx/tiled_xxTILEIDxx_albedo_0.0625_PNW.asc'
+      SNOALB_FILE='xxTILEPARMSxx/tiled_xxTILEIDxx_max_snow_albedo_0.0625_PNW.asc'
+      UZTWM_FILE='xxTILEPARMSxx/tiled_xxTILEIDxx_uztwm.asc'
+      UZFWM_FILE='xxTILEPARMSxx/tiled_xxTILEIDxx_uzfwm.asc'
+      UZK_FILE='xxTILEPARMSxx/tiled_xxTILEIDxx_uzk.asc'
+      ZPERC_FILE='xxTILEPARMSxx/tiled_xxTILEIDxx_zperc.asc'
+      REXP_FILE='xxTILEPARMSxx/tiled_xxTILEIDxx_rexp.asc'
+      LZTWM_FILE='xxTILEPARMSxx/tiled_xxTILEIDxx_lztwm.asc'
+      LZFSM_FILE='xxTILEPARMSxx/tiled_xxTILEIDxx_lzfsm.asc'
+      LZFPM_FILE='xxTILEPARMSxx/tiled_xxTILEIDxx_lzfpm.asc'
+      LZSK_FILE='xxTILEPARMSxx/tiled_xxTILEIDxx_lzsk.asc'
+      LZPK_FILE='xxTILEPARMSxx/tiled_xxTILEIDxx_lzpk.asc'
+      PFREE_FILE='xxTILEPARMSxx/tiled_xxTILEIDxx_pfree.asc'
+      ELEV_FILE='xxTILEPARMSxx/tiled_xxTILEIDxx_elevation.PNW.asc'
+      SNOWBAND_FILE='/civil/hydro/mrstu/IS/sim-ulm/params-ulm/Ishu-ULM-v1-gz0112veg/params_ungridded/new_tiled_snowbands-16d/xxSNOWBANDSxx_snowbands.txt'
+      NBANDS=5            ! If no snowbands file is specified, NBANDS should be 1
+      MODEL_TYPE=1    ! Specify model extensions to be included: Noah[0],SAC[1],PEMB[2],SAC&PEMB[3]
+      MAXNSOIL=4          ! Maximum number of soil layers; if MODEL_TYPE= 1 or 3:MAXNSOIL=2, else=4
+      NMONTHS=12          ! Number of time values for time-varying params
+      SAC_CONST='/civil/hydro/mrstu/IS/sim-ulm/params-ulm/Ishu-ULM-v1-gz0112veg/params_ungridded/sac_const_adimp0.0.txt'
+    !      PE_SCALE='/raid9/ishu/integrated_scenario/parameter_files/pescale_PNW.asc'   
+    !      PE_ADJ='/raid9/ishu/integrated_scenario/parameter_files/peadj/peadj.PNW_0.0625.asc'
+      !------------------------------------------------------------------------
+      ICE1=0              ! Ice flag (0 or 1)
+      Z1=10.0             ! Humidity measurement height (m)
+      ! Stub for full_data.YYYYMM.nc forcing files
+      FORCING='xxDATAFRCxx/full_data'
+      RESTART='xxSIMDATAxx/ulm-nc-state/state'      
+      RESULT='xxSIMDATAxx/ulm-nc/'
+      COMP_OUTPUT=.TRUE.  ! If .TRUE., compress output data by gathering, i.e. only store data for valid cells

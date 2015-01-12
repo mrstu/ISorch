@@ -1,0 +1,21 @@
+
+PROJBASE=/civil/hydro/mrstu/IS/sim-ulm/projects/prj3
+
+DATA=${PROJBASE}/simdata/$RUNNAME/$SIMID
+TILEDATA=""
+#CONTROL=$PWD/control_ulm-summ/$RUNNAME/$SIMID
+GRIDDES=/civil/hydro/mrstu/IS/sim-ulm/project1/mask_griddes.txt
+TILELOC=ulm-nc
+#MERGELOC=$DATA/ulm-nc-summ.merge
+#SUMMLOC=$DATA/ulm-nc-summ
+##TARGET=wb.195912.nc
+#BINWRAPPER=$PWD/worker_tilesumm.bsh
+#HYAK_SLOTS=16
+
+# define expected ULM output files
+WBEXP_HIST=$PROJBASE/cfg_synth/wb.expected_historical_1950-2005.txt
+WBEXP_RCP45=$PROJBASE/cfg_synth/wb.expected_rcp45_2006-2099.txt
+WBEXP_RCP85=$PROJBASE/cfg_synth/wb.expected_rcp85_2006-2099.txt # Redundant but explicit
+
+# define expect output tiles
+EXPTILES="tiles.expected.sim.txt"

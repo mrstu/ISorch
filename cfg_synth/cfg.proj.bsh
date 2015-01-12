@@ -1,0 +1,13 @@
+
+PROJBASE=/civil/hydro/mrstu/IS/sim-ulm/projects/prj3
+
+DATA=${PROJBASE}/simdata/$RUNNAME/$SIMID
+TILEDATA=""
+#CONTROL=$PWD/control_ulm-summ/$RUNNAME/$SIMID
+GRIDDES=/civil/hydro/mrstu/IS/sim-ulm/project1/mask_griddes.txt
+TILELOC=ulm-nc
+#MERGELOC=$DATA/ulm-nc-summ.merge
+#SUMMLOC=$DATA/ulm-nc-summ
+##TARGET=wb.195912.nc
+#BINWRAPPER=$PWD/worker_tilesumm.bsh
+#HYAK_SLOTS=16

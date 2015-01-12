@@ -1,0 +1,12 @@
+#!/bin/bash
+
+gcmnames=( $(grep -v "CCSM4\|LID" ../GCM_list.txt | xargs) )
+
+for i in "${gcmnames[@]}"
+do
+
+./runproj.$i"__historical"*.qsub
+./runproj.$i"__rcp45"*.qsub
+./runproj.$i"__rcp85"*.qsub;
+
+done

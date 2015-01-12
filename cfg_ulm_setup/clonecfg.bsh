@@ -1,0 +1,16 @@
+#!/bin/bash
+
+#gcmnames=( $(grep -v "CCSM4\|LID" ../GCM_list.txt | xargs) )
+gcmnames=( $(grep -v "CCSM4" ../GCM_list.txt | xargs) )
+#exit
+#args=( $@ )
+#target="${args[0]}"
+#clones="
+
+for newgcm in "${gcmnames[@]}"
+do
+echo $newgcm
+#for i in $(ls CCSM4__historical*v1.10.*); do newname=$(echo $i | sed 's/'"CCSM4"'/'"$newgcm"'/g'); sed 's/GCM=CCSM4/GCM='"$newgcm"'/g' $i > $newname; echo $i $newname; done
+for i in $(ls CCSM4__rcp*v1.10.comp.cfg); do newname=$(echo $i | sed 's/'"CCSM4"'/'"$newgcm"'/g'); sed 's/GCM=CCSM4/GCM='"$newgcm"'/g' $i > $newname; echo $i $newname; done
+
+done

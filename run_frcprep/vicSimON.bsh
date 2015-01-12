@@ -1,0 +1,4 @@
+#!/bin/bash
+
+#n0561 { /civil/hydro/mrstu/IS/sim-ulm/projects/prj3/run_frcprep }->
+sed -i -e 's/run_nc2cat4=1/run_nc2cat4=0/g' -e 's/run_cat4_to_nc3h=1/run_cat4_to_nc3h=0/g' *.qsub

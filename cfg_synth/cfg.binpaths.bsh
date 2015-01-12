@@ -1,0 +1,6 @@
+
+JOB_MODULES="icc_14.0.2 netcdf_4.3.1.1-icc_14.0.2"
+
+USE_PYTHON=/sw/contrib/hydro/anaconda/bin/python
+USE_NCO=/sw/contrib/hydro/icc_14.0.2/bin
+CDOPATH=/sw/contrib/hydro/bin/cdo

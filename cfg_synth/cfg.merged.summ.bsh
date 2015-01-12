@@ -1,0 +1,31 @@
+
+optype="daily.merge"
+numcores=16
+#memGB=40
+memGB=90
+
+NUMJOBS=40
+
+JOB_MODULES="icc_14.0.2 netcdf_4.3.1.1-icc_14.0.2"
+
+HYAK_SLOTS=$numcores
+NODE_REQ="nodes=1:ppn="$numcores",feature="$numcores"core,mem="$memGB"gb"
+WALL_REQ="03:55:00"
+USER_EMAIL="mrstu@u.washington.edu"
+
+CONTROL=$PROJBASE/control_ulm-merged.summ/$RUNNAME/$SIMID #CONTROL_FLDMEAN
+MERGELOC=$DATA/ulm-nc-merge
+SUMMLOC=$MERGELOC.summ
+#SUMMLOC=$DATA/ulm-nc-merged.S
+
+BINWRAPPER=$PROJBASE/worker_syn_merged.summ.bsh
+#BINWRAPPER=$PROJBASE/worker_syn_tilemerge.bsh
+BUNDLE_NAMESTUB="bundle_merged.summ"
+#NCCONVERTER=$PROJBASE/readfluxnc2_ulm.py
+#NCCONVERTER=$PROJBASE/ncblks2nc.py
+USE_PYTHON=/sw/contrib/hydro/anaconda/bin/python
+USE_NCO=/sw/contrib/hydro/icc_14.0.2/bin
+CDOPATH=/sw/contrib/hydro/bin/cdo
+
+#TODO: NOT SURE HOW TO HANDLE THIS
+#CFG=$PWD/cfg_tilesumm/cfg_tilesumm_$RUNNAME"_"$SIMID.bsh

@@ -1,0 +1,29 @@
+
+optype="daily.merge"
+numcores=16
+memGB=90
+
+NUMJOBS=62
+#NUMJOBS=11
+
+JOB_MODULES="icc_14.0.2 netcdf_4.3.1.1-icc_14.0.2"
+
+HYAK_SLOTS=$numcores
+NODE_REQ="nodes=1:ppn="$numcores",feature="$numcores"core,mem="$memGB"gb"
+WALL_REQ="03:55:00"
+USER_EMAIL="mrstu@u.washington.edu"
+
+CONTROL=$PROJBASE/control_vic-merge/$RUNNAME/$SIMID #CONTROL_FLDMEAN
+#MERGELOC=$DATA/ulm-nc-merge
+
+BINWRAPPER=$PROJBASE/worker_syn_tilemerge-flat.bsh
+#BINWRAPPER=$PROJBASE/worker_syn_tilemerge.bsh
+BUNDLE_NAMESTUB="bundle_tilemerge"
+#NCCONVERTER=$PROJBASE/readfluxnc2_ulm.py
+NCCONVERTER=$PROJBASE/ncblks2nc.py
+USE_PYTHON=/sw/contrib/hydro/anaconda/bin/python
+USE_NCKS=/sw/contrib/hydro/icc_14.0.2/bin/ncks
+CDOPATH=/sw/contrib/hydro/bin/cdo
+
+#TODO: NOT SURE HOW TO HANDLE THIS
+#CFG=$PWD/cfg_tilesumm/cfg_tilesumm_$RUNNAME"_"$SIMID.bsh
