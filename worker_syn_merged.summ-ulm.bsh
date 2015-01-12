@@ -1,0 +1,184 @@
+#!/bin/bash
+
+dryrun=0
+
+##TESTING:
+
+#/civil/hydro/mrstu/IS/sim-ulm/projects/project2/worker_syn_merged.summ.bsh wb.195001.nc /civil/hydro/mrstu/IS/sim-ulm/projects/project2/control_ulm-merged.summ/LID-V1110__historical/snowbands-v1.6.16d.comp/cfg.merged.summ.cfg
+#/civil/hydro/mrstu/IS/sim-ulm/projects/project2/worker_syn_merged.summ.bsh wb.195309.nc /civil/hydro/mrstu/IS/sim-ulm/projects/project2/control_ulm-merged.summ/CSIRO-Mk3-6-0__historical/snowbands-v1.6.16d.comp/cfg.merged.summ.cfg
+
+# provide full path to config file
+config=$2
+source $config
+
+targetfile=$1
+targetpath=$MERGELOC/$targetfile
+tbn=$(basename $targetfile ".nc")
+
+
+function exitcheck() {
+    if [ "$1" -ne 0 ]
+    then
+        echo "exitcheck: FAILED ("$1")"
+        exit "$1"
+    fi
+    
+}
+
+function wrapcmd() {
+    #echo $@
+    #echo $wcexit
+    if [ "$wcexit" -eq 0 ]
+    then
+        echo $@
+        eval "$@"
+        wcexit="$?"
+        wait
+        
+	    if [ "$wcexit" -ne 0 ]
+	    then
+            echo "failed command ("$wcexit")"
+            echo $@
+	        exit $wcexit
+        fi
+    else
+        echo "prior command failed:" $wcexit
+        echo "before "$@
+        exit $wcexit
+    fi
+    
+}
+
+
+function run_merged_summ() {
+
+###################################
+## Read merged months input data ##
+###################################
+
+if [ "$dryrun" -eq 0 ]
+then
+        
+	#ncks -O -v Rainf,Snowf,Evap $targetpath $tbn.monmean.met.nc
+	#ncks -O -v AvgSurfT $ofilemons.nc $ofilemons.tsurf.nc
+	#ncks -O -v Qs,Qsb $ofilemons.nc $ofilemons.runoff.nc
+	#ncks -O -v SoilMoist $ofilemons.nc $ofilemons.soilmoist.nc
+	#ncks -O -v SWE $ofilemons.nc $ofilemons.swe.nc
+
+    wcexit=0
+
+    ## combine flows (I've chained this but probably better to just bite the bullet and calc monmean for all vars?)
+    
+    ## Chaining would hang for a handful of months
+    #wrapcmd $CDOPATH -O selname,Rainf,Snowf,Evap,Qs,Qsb,Qsm,AvgSurfT -monmean $targetpath $SUMMLOC/$tbn.monmean.flux-temp.nc
+
+
+    if [ 1 -eq 1 ]
+    then
+
+#AvgSurfT Evap Latitude Longitude LWnet PotEvap Qg Qh Qle Qs Qsb Qsm Rainf RootMoist SMLiqFrac Snowf SoilMoist SoilTemp SWE SWEVeg SWnet Time TVeg
+
+    vall=( AvgSurfT Evap LWnet PotEvap \
+        Qg Qh Qle Qs Qsb Qsm Rainf RootMoist SMLiqFrac Snowf \
+        SoilMoist SoilTemp SWE SWEVeg SWnet TVeg )
+    # TotalRunoff is derived.
+    vmonsum=( Evap Precip Qs Qsb Qsm TVeg PotEvap TotalRunoff )
+    # TotalSoilMoist is derived
+    # removed Qsm (though in VIC summ)
+    # LW/SW out not in output (though in VIC summ)
+    vmonmean=( Qg Qh Qle LWnet SWnet SoilTemp AvgSurfT TotalSoilMoist )
+    vmonday1=( SWE TotalSoilMoist Evap TotalRunoff PotEvap )
+    vmonmax=( TotalRunoff Qsm )
+    
+#
+# Extract individual variables for daily timestep
+#
+
+    for ivar in "${vall[@]}"
+    do
+        dir_daily1var=$SUMMLOC/daily1var/$ivar
+        mkdir -p $dir_daily1var
+        #wrapcmd $CDOPATH -O selname,$vall $targetpath $dir_daily1var/$tbn.$ivar.nc #BAD $vall always select Evap.
+        wrapcmd $CDOPATH -O selname,$ivar $targetpath $dir_daily1var/$tbn.$ivar.nc #FIXED $ivar selects respective variable.
+    done
+
+#
+# Derived daily variables
+#
+
+    ivar=TotalRunoff
+    
+    dir_daily1var=$SUMMLOC/daily1var/$ivar
+    mkdir -p $dir_daily1var
+    wrapcmd $USE_NCO/ncap -O -v -s "'TotalRunoff=(Qs+Qsb)'" $targetpath $dir_daily1var/$tbn.$ivar.nc
+
+    ivar=TotalSoilMoist
+    
+    dir_daily1var=$SUMMLOC/daily1var/$ivar
+    mkdir -p $dir_daily1var
+    wrapcmd $CDOPATH -O vertsum $SUMMLOC/daily1var/SoilMoist/$tbn.SoilMoist.nc $dir_daily1var/$tbn.$ivar.nc
+
+    ivar=Precip
+    
+    dir_daily1var=$SUMMLOC/daily1var/$ivar
+    mkdir -p $dir_daily1var
+    wrapcmd $USE_NCO/ncap -O -v -s "'Precip=(Rainf+Snowf)'" $targetpath $dir_daily1var/$tbn.$ivar.nc
+
+
+#
+# Summaries for individual variable month of daily timestep files
+#
+
+    for ivar in "${vmonsum[@]}"
+    do
+        statname=monsum
+        
+        dir_daily1var=$SUMMLOC/daily1var/$ivar
+        dir_stat=$SUMMLOC/$statname/$ivar        
+        mkdir -p $dir_stat
+        wrapcmd $CDOPATH -O $statname $dir_daily1var/$tbn.$ivar.nc $dir_stat/$tbn.$ivar.$statname.nc
+    done
+
+    for ivar in "${vmonmean[@]}"
+    do
+        statname=monmean
+        
+        dir_daily1var=$SUMMLOC/daily1var/$ivar
+        dir_stat=$SUMMLOC/$statname/$ivar        
+        mkdir -p $dir_stat
+        wrapcmd $CDOPATH -O $statname $dir_daily1var/$tbn.$ivar.nc $dir_stat/$tbn.$ivar.$statname.nc
+    done
+
+    for ivar in "${vmonmax[@]}"
+    do
+        statname=monmax
+        
+        dir_daily1var=$SUMMLOC/daily1var/$ivar
+        dir_stat=$SUMMLOC/$statname/$ivar        
+        mkdir -p $dir_stat
+        wrapcmd $CDOPATH -O $statname $dir_daily1var/$tbn.$ivar.nc $dir_stat/$tbn.$ivar.$statname.nc
+    done
+
+    for ivar in "${vmonday1[@]}"
+    do
+        statname=monday1
+        
+        dir_daily1var=$SUMMLOC/daily1var/$ivar
+        dir_stat=$SUMMLOC/$statname/$ivar        
+        mkdir -p $dir_stat
+        wrapcmd $CDOPATH -O selday,1 $dir_daily1var/$tbn.$ivar.nc $dir_stat/$tbn.$ivar.$statname.nc
+    done
+    
+    fi
+
+fi
+
+}
+
+#ilog=$(basename $TARGET ".nc")
+#run_merged_summ > $CONTROL/joblogs/log_$ilog".txt"
+run_merged_summ > $CONTROL/joblogs/log_$tbn".txt" 2>&1
+
+exit $wcexit
+
+

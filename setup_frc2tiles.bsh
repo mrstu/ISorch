@@ -1,0 +1,23 @@
+#!/bin/bash
+
+
+TOOLDIR=/civil/hydro/mrstu/IS/sim-ulm/tile-sim-tools
+
+TILEDIR=/civil/hydro/mrstu/IS/sim-ulm/params-ulm/Ishu-ULM-v1-gz0112veg/params_tiled_16
+
+masks=$(ls $TILEDIR/tiled_*_mask_order_pnw_0.0625.asc)
+
+#$TOOLDIR/scripts/aaig_mask2corners.bsh $masks > tile16d-corners-llur.txt
+
+rm tile16d-corners-llur.txt
+for imsk in $masks
+do
+    isempty=$($TOOLDIR/scripts/aaig_0625_isempty.AWK $imsk)
+    if [ "$isempty" -ne 1 ]
+    then
+        mskid=$(basename $imsk | cut -d_ -f2-3)
+        $TOOLDIR/scripts/aaig_mask2corners.bsh $imsk $mskid >> tile16d-corners-llur.txt
+                
+        #$TOOLDIR/scripts/arcinfo_to_lat_lon_list_0625_no_data.bsh $mskid > tile16d-corners-llur.txt
+    fi
+done

@@ -1,0 +1,44 @@
+#!/bin/bash
+
+cd $1
+
+outfile=$2
+
+echo "$@"
+#exit
+
+CDOPATH=/sw/contrib/hydro/bin/cdo
+
+function wrapcmd() {
+    #echo $@
+    #echo $wcexit
+    if [ "$wcexit" -eq 0 ]
+    then
+        #echo $@
+        eval "$@"
+        wcexit="$?"
+        wait
+        
+        if [ "$wcexit" -ne 0 ]
+        then
+            echo "failed command ("$wcexit")"
+            echo $@
+            exit $wcexit
+        fi
+    else
+        echo "prior command failed:" $wcexit
+        echo "before "$@
+        exit $wcexit
+    fi
+    
+}
+
+wcexit=0
+
+# for ulm merge summ the output is wb.dddddd.vname.nc so have to replace full_data portion from expected list.
+infiles=$(awk -v suffix=$4 '{printf("%s%s\n",$1,suffix)}' $3 | sed 's/full_data/wb/g')
+#infiles=$(awk -v suffix=$4 '{printf("%s%s\n",$1,suffix)}' $3)
+#./catmons.bsh $(tail -n 1 master_daily_list.txt)
+
+#echo $infiles
+wrapcmd $CDOPATH -O copy $infiles $outfile

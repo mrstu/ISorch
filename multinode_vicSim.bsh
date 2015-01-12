@@ -1,0 +1,45 @@
+#!/bin/bash
+
+NUMJOBS=22
+RUNNAME=$1 #LID-V1110__historical
+JOB_WORKDIR=$2 #/civil/hydro/mrstu/IS/sim-ulm/projects/project2/batch_vicDisagg2nc/$RUNNAME
+
+BUNDLE_NAMESTUB=bundle
+JOBLOG=joblog
+
+JOB_MODULES="parallel_20140122 icc_14.0.2 netcdf_4.3.1.1-icc_14.0.2"
+#JOB_SPEC="nodes=1:ppn=16,feature=16core,mem=40gb"
+JOB_SPEC="nodes=1:ppn=16,feature=16core,mem=75gb"
+JOB_OUTPUT=$JOB_WORKDIR
+HYAK_SLOTS=16
+ARGS_MASTER=$JOB_WORKDIR/masterargs.txt
+
+BINWRAPPER=/civil/hydro/mrstu/IS/sim-ulm/tile-sim-tools/scripts/run_vic.bsh
+
+cd $JOB_WORKDIR
+split -l 41 -d $ARGS_MASTER masterargs.sub_
+
+for isub in $(ls masterargs.sub_*)
+do
+
+subID=$(echo $isub | awk -F_ '{print $2}')
+ARGS_SUB_NODE=$isub
+JOBLOG_NODE=$JOBLOG"_"$subID
+BUNDLE_NAME=$BUNDLE_NAMESTUB"_"$subID
+
+cat >$JOB_WORKDIR/mnsubmit.ctl_$subID.qsub <<EOL
+#PBS -N $BUNDLE_NAME
+#PBS -l $JOB_SPEC
+##PBS -l walltime=03:55:00
+#PBS -l walltime=24:00:00
+#PBS -m abe -M mrstu@u.washington.edu
+#PBS -o $JOB_OUTPUT
+#PBS -j oe
+#PBS -d $JOB_WORKDIR
+HYAK_SLOTS=${HYAK_SLOTS}
+module load $JOB_MODULES
+cat $ARGS_SUB_NODE | parallel -j $HYAK_SLOTS --joblog $JOBLOG_NODE --resume-failed $BINWRAPPER {}
+exit 0
+EOL
+
+done

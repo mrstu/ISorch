@@ -1,0 +1,178 @@
+#!/bin/bash
+
+###############
+## Arguments ##
+###############
+## 
+## $1 <configfile>
+
+###################
+## Functionality ##
+###################
+##
+## Setup ULM tiled parameter data
+## Generate full-domain cell spatial info
+## Create configs
+##     (1) nc-forcings to VIC daily forcings
+##     (2) tile vicDisagg and vic2nc.c 
+##         - VIC global config
+##         - VIC parameter splitlists
+##         - vic2nc.c metadata template
+
+##############
+## Settings ##
+##############
+
+## Get config variables
+source $1
+
+## location where forcing data will be written
+opdir=$OUTDIR
+#opdir=/state/partition1/stumbaugh
+
+## number of cells to disaggregate per tile / per vicDisagg instance
+cells_per_split=50
+
+#############################################################
+## Create bash config file for full domain NC to VIC daily ##
+#############################################################
+
+unpackname=$DATASRC"__"$SCENARIO
+#opdir=/state/partition1/stumbaugh
+unpackdir=unpack_forcings/$unpackname
+
+#################
+## TILE domain ##
+#################
+
+cfgdir=$OUTDIR/cfg_vicfrc2disagg/$unpackname
+mkdir -p $cfgdir
+mkdir -p logs_vic_prep/$unpackname
+
+controldir=$OUTDIR
+opdir=$opdir
+unpackname=$unpackname
+#outdir_frc=$opdir/$unpackdir/cat4
+
+#for tilefile in $(ls $OUTDIR_PARAMS_TILES_BASE/params_tiled_$TILESIZE/tiled_*_elevation.PNW.asc)
+#for tilefileid in $(awk '{print $1}' $TILELIST)
+#do
+echo $TILELIST
+#head -n 1 $TILELIST > $TILELIST.tmp
+cp $TILELIST $TILELIST.tmp
+
+while read line
+do
+    echo $line
+    tilefileid=$(echo $line | awk '{print $1}')
+    tileextent=$(echo $line | cut -d" " -f2-)
+    
+    #numactive=$($BASECODE/arcinfo_to_lat_lon_list_0625.bsh $tilefile | head -n 1)
+    #if [ "$numactive" -gt 0 ]
+    #then
+        tilefile=$OUTDIR_PARAMS_TILES_BASE/params_tiled_$TILESIZE/tiled_$tilefileid"_elevation.PNW.asc"
+        #echo $numactive $tilefile
+        #echo $tilefile
+		tileind=$(basename $tilefile | awk -F_ '{print $2, $3}')
+		tile_icol=$(echo $tileind | awk '{print $1}')
+		tile_irow=$(echo $tileind | awk '{print $2}')
+		tileid=$tile_icol"_"$tile_irow
+        vic_control=$OUTDIR/control_vic/$unpackname/$TILESIZE"_"$tileid
+echo $tileid
+
+
+cat >$cfgdir/$tileid.conf  <<EOL
+tileid=$tileid
+tilefile=$tilefile
+tileextent="$tileextent"
+
+basedir_cells=$opdir/$unpackdir
+#outdir_frc=$opdir/$unpackdir/cat4
+
+input_template_disagg=$vic_disagg_input_template
+input_template_sim=$vic_sim_input_template
+
+cells_per_split=${cells_per_split}
+vic_control=$vic_control
+
+basesoilfile=$basesoilfile
+basesnowfile=$basesnowfile
+basevegfile=$basevegfile
+
+VIC_DISAGG=$VIC_DISAGG
+vicglobaldir_disagg=$vic_control/globals.disagg
+
+VIC_SIM=$VIC_SIM
+vicglobaldir_sim=$vic_control/globals.sim
+
+
+TOOLDIR=$BASECODE/ulm-frc-prep-v1.0/tools_vic2nc
+CONTROLDIR=$vic_control
+
+NCINPUTS=$BASE_VICFRCNC/$DATASRC"_"$SCENARIO
+NCOUTDIR1D=$opdir/$unpackdir/tiledata/tiles_$TILESIZE/${TILESIZE}_$tileid/frc1d-nc
+NCOUTDIR=$opdir/$unpackdir/tiledata/tiles_$TILESIZE/${TILESIZE}_$tileid/frc3h-nc
+ASCIIFORCEDIR1D=$opdir/$unpackdir/tiledata/tiles_$TILESIZE/${TILESIZE}_$tileid/frc1d
+ASCIIFORCEDIR3H=$opdir/$unpackdir/tiledata/tiles_$TILESIZE/${TILESIZE}_$tileid/frc3h
+VICOUTDIR=$opdir/$unpackdir/tiledata/tiles_$TILESIZE/${TILESIZE}_$tileid/fluxes
+VICSTATEDIR=$opdir/$unpackdir/tiledata/tiles_$TILESIZE/${TILESIZE}_$tileid/stateout
+STARTDATE=$STARTDATE
+ENDDATE=$ENDDATE
+HYAK_DEST=$HYAK_DEST
+BASECODE=$BASECODE
+EOL
+
+        ##logs_vic_prep=$vic_control/logs_vic_prep
+        ##qcmd -q default.q@compute-0-0 -o $logs_vic_prep $BASECODE/vic_prep_soilfile.bsh $cfgdir/$tileid.conf
+        ##TROUBLE directing log file output with this
+        #qcmd -q default.q@compute-0-0 -o logs_vic_prep/$unpackname/ -N "vic_prep_soilfile" $BASECODE/vic_prep_soilfile.bsh $cfgdir/$tileid.conf
+        #qsub -q default.q@compute-0-0 -o "logs_vic_prep/$unpackname" -N "vic_prep_soilfile" $BASECODE/vic_prep_soilfile.bsh $cfgdir/$tileid.conf        
+        $BASECODE/scripts/vic_prep_soilfile.bsh $cfgdir/$tileid.conf
+    #else
+    #    echo $numactive $tilefile INACTIVE
+    #fi
+    #break
+done < $TILELIST.tmp
+
+exit
+
+##TODO: update
+# /control_vic
+# |---> /tiles_1d
+# |---> /tiles_4d
+# |------> /00_00
+# |------> /$COL_$ROW
+# |------> /05_05
+# |---------> /params
+# |---------> /globals
+# |---------> ~/state/partition1/stumbaugh/...
+
+#####################
+## NC to VIC daily ##
+#####################
+
+## nc2asc--> asc2cell for each variable (on /state/partition1)
+#$BASECODE/ascblk2cell.bsh $cfgfile
+
+## cell2vic
+##      combine ASCII cell time series to 4-column VIC ASCII
+##      sub call to combvars
+#$BASECODE/cells2frc.bsh $cfgfile
+
+########################
+## VIC daily to nc-3h ##
+########################
+
+## vicDisagg (daily VIC to 3 hourly)
+##      prepare domain soil file
+#$BASECODE/vic_prep_soilfile.bsh
+##      prepare global file
+
+## vic2nc.c (daily VIC forcings to 3-hourly VIC NetCDF)
+##      prepare metadata template
+#$BASECODE/run_vic2nc.bsh
+
+## remove daily vic frc
+
+## transfer frc3h-nc to hyak
+

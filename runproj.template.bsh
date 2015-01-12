@@ -1,0 +1,125 @@
+
+
+run_nc2cat4=1
+run_cat4_vicsim=1
+run_cat4_to_nc3h=1
+
+## Get config variables
+
+source xxCONFIGxx
+#source master__LID-V1110__historical__gmt-smooth.cfg
+
+dateid=$(date +"%F-%H%M")
+
+runname=$DATASRC"__"$SCENARIO
+
+frcnc=( $(ls $BASE_VICFRCNC/$DATASRC"_"$SCENARIO*.nc) )
+numfrcnc=${#frcnc[@]}
+if [ "$numfrcnc" -ne 4 ]
+then
+    exit 151
+fi
+
+##     (1) run vicDisagg 
+##     (2) vic2nc.c
+##     (3) transfer and delete.
+#ls -d control_vic/LID-V1110__1950s/*/globals/
+##find control_vic/LID-V1110__1950s/*/globals -type f
+
+#listconfs=( $(ls $OUTDIR/cfg_vicfrc2disagg/$runname/*.conf) )
+#tiles=(cut -d" " -f1 tiled16d-corners-llur.hood.not_waglactite.txt | xargs | tr ' ' ',')
+listconfs=( $(awk -v relpath=$OUTDIR/cfg_vicfrc2disagg/$runname '{printf("%s/%s.conf\n",relpath,$1)}' $TILELIST | xargs) )
+
+##
+## EXTRACT DAILY FORCINGS BY TILE AND CREATE CELL ASCII TIME SERIES
+##
+
+if [ "$run_nc2cat4" -eq 1 ]
+then
+
+opname=nc2cat4
+
+batdir=$OUTDIR/batch_$opname/$runname
+
+#mkdir -p log_$opname $batdir
+mkdir -p $batdir
+
+dateid=$(date +"%F-%H%M")
+mkdir $batdir/archive.$dateid
+mv $batdir/{bundle,joblog_,masterargs,mnsubmit}* $batdir/archive.$dateid
+
+subcount=0
+rm $batdir/masterargs.txt
+for iconf in "${listconfs[@]}"
+do
+    
+    #confid=$(basename $iconf ".conf")
+    # $BASECODE/tools_vic2nc/run_vic2nc.bsh $iconf > batch_vicDisagg2nc/masterargs.txt
+    echo $iconf >> $batdir/masterargs.txt
+done
+
+$OUTDIR/multinode_$opname.bsh $runname $batdir
+
+fi
+
+
+##
+## VIC Simulation
+##
+
+if [ "$run_cat4_vicsim" -eq 1 ]
+then
+    
+opname=vicSim
+
+batdir=$OUTDIR/batch_$opname/$runname
+    
+#log_runvic2vicnc 
+mkdir -p $batdir
+mkdir $batdir/archive.$dateid
+mv $batdir/{bundle,joblog_,masterargs,mnsubmit}* $batdir/archive.$dateid
+
+subcount=0
+rm $batdir/masterargs.txt
+for iconf in "${listconfs[@]}"
+do
+    
+    #confid=$(basename $iconf ".conf")
+    # $BASECODE/tools_vic2nc/run_vic2nc.bsh $iconf > batch_vicDisagg2nc/masterargs.txt
+    echo $iconf >> $batdir/masterargs.txt
+done
+
+$OUTDIR/multinode_$opname.bsh $runname $batdir
+
+fi
+
+
+##
+## 3-HOURLY DISAGGREGATION QSUB FORMATION
+##
+
+if [ "$run_cat4_to_nc3h" -eq 1 ]
+then
+    
+opname=vicDisagg2nc
+
+batdir=$OUTDIR/batch_$opname/$runname
+    
+#log_runvic2vicnc 
+mkdir -p $batdir
+mkdir $batdir/archive.$dateid
+mv $batdir/{bundle,joblog_,masterargs,mnsubmit}* $batdir/archive.$dateid
+
+subcount=0
+rm $batdir/masterargs.txt
+for iconf in "${listconfs[@]}"
+do
+    
+    #confid=$(basename $iconf ".conf")
+    # $BASECODE/tools_vic2nc/run_vic2nc.bsh $iconf > batch_vicDisagg2nc/masterargs.txt
+    echo $iconf >> $batdir/masterargs.txt
+done
+
+$OUTDIR/multinode_vicDisagg2nc.bsh $runname $batdir
+
+fi

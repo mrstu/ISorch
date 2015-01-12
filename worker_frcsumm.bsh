@@ -1,0 +1,54 @@
+#!/bin/bash
+
+dryrun=0
+
+TARGET=$1
+OUTFILE=$2
+LOGFILE=$3
+
+CDOPATH=/sw/contrib/hydro/bin/cdo
+
+function wrapcmd() {
+    #echo $@
+    #echo $wcexit
+    if [ "$wcexit" -eq 0 ]
+    then
+        echo $@
+        eval "$@"
+        wcexit="$?"
+        wait
+        
+        if [ "$wcexit" -ne 0 ]
+        then
+            echo "failed command ("$wcexit")"
+            echo $@
+            exit $wcexit
+        fi
+    else
+        echo "prior command failed:" $wcexit
+        echo "before "$@
+        exit $wcexit
+    fi
+    
+}
+
+function runmerge() {
+
+###############################################
+## Read input data, create ulm control files ##
+###############################################
+
+wcexit=0
+
+fldops=( monmean )
+#fldops=( monsum monmax monmin )
+for fldop in "${fldops[@]}"
+do
+    wrapcmd $CDOPATH -O $fldop $TARGET $OUTFILE.$fldop".nc"
+done
+
+}
+
+#ilog=$(basename $TARGET ".nc")
+#ilog=$TARGET
+runmerge > $LOGFILE

@@ -1,0 +1,39 @@
+#!/bin/bash
+
+## 20141013
+
+##  ID tiles within bounds of interest.  
+
+## adapted from hydra:/home/raid3/stumbaugh/LID-V1110.mrs.20140912
+#   bounds = [ 46.5, 49.3, -124.5, -120. ]
+#awk 'BEGIN{FS=" -d ";llat=46.; ulat=50.; llon=-125.; rlon=-119.5}{nlats=split($3,lats,","); nlons=split($2,lons,","); if(lats[2]>llat && lats[4]<ulat && lons[2]-360.>llon && lons[4]-360.<llon){print $0}}' tile16d-corners-llur.txt
+
+#UpperSkagit/Nooksack/Stehekin
+#47.96875,49.28125,-122.78125,-120.65625
+#Hoh River
+#47.71875,47.90625,-124.28125,-123.53125
+#Rainier
+#46.65625, 46.96875, -122.09375, -121.59375
+
+boxnm=( NCasc Hoh Rainier )
+boxes=( "47.96875,49.28125,-122.78125,-120.65625" "47.71875,47.90625,-124.28125,-123.53125" "46.65625,46.96875,-122.09375,-121.59375" )
+outfile=tiled16d-corners-llur.waglactite.txt
+
+boxnm=( Hood )
+#45.28125,45.71875,-121.90625,-121.46875
+boxes=( "45.,46.,-122.,-121.4" )
+outfile=tiled16d-corners-llur.hood.txt
+
+rm $outfile
+cnt=0
+for box in ${boxes[@]}
+do 
+    echo "success" "${boxnm[$cnt]}"
+    #awk -v box=$box 'BEGIN{FS=" -d "; lonoffset=-360.; pad=1.; nbnds=split(box,bnds,","); llat=bnds[1]-pad; ulat=bnds[2]+pad; llon=bnds[3]-pad; rlon=bnds[4]+pad}{nlats=split($3,lats,","); nlons=split($2,lons,","); if(lats[2]>llat && lats[3]<ulat && lonoffset+lons[2]>llon && lonoffset+lons[3]<rlon){print "success", $1, llat, lats[2], lats[3], ulat, llon, lons[2]+lonoffset, lons[3]+lonoffset, rlon}else{print "fail", llat, lats[2], lats[3], ulat, llon, lons[2]+lonoffset, lons[3]+lonoffset, rlon}}' tile16d-corners-llur.txt > tiled16d-corners-llur.waglactite.txt
+#awk -v box=$box 'BEGIN{FS=" -d "; lonoffset=-360.; pad=1.5; nbnds=split(box,bnds,","); llat=bnds[1]-pad; ulat=bnds[2]+pad; llon=bnds[3]-pad; rlon=bnds[4]+pad}{nlats=split($3,lats,","); nlons=split($2,lons,","); if(lats[2]>llat && lats[3]<ulat && lonoffset+lons[2]>llon && lonoffset+lons[3]<rlon){print "success", $1, llat, lats[2], lats[3], ulat, llon, lons[2]+lonoffset, lons[3]+lonoffset, rlon}}' tile16d-corners-llur.txt >> $outfile
+awk -v box=$box 'BEGIN{FS=" -d "; lonoffset=-360.; pad=1.5; nbnds=split(box,bnds,","); llat=bnds[1]-pad; ulat=bnds[2]+pad; llon=bnds[3]-pad; rlon=bnds[4]+pad}{nlats=split($3,lats,","); nlons=split($2,lons,","); if(lats[2]>llat && lats[3]<ulat && lonoffset+lons[2]>llon && lonoffset+lons[3]<rlon){print $0}}' tile16d-corners-llur.txt >> $outfile
+    let cnt=$cnt+1
+done
+    
+
+

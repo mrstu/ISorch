@@ -1,0 +1,20 @@
+#!/bin/bash
+
+#PBS -N bundle-frcprep
+#PBS -l nodes=1:ppn=16,feature=16core,mem=110gb
+#PBS -l walltime=24:00:00
+#PBS -m abe -M mrstu@u.washington.edu
+#PBS -o /civil/hydro/mrstu/IS/sim-ulm/projects/project2/joblog_frcprep
+#PBS -j oe
+#PBS -d /civil/hydro/mrstu/IS/sim-ulm/projects/project2
+
+HYAK_SLOTS=16
+
+echo "runproj files in run_frcprep/"
+find run_frcprep/ -name "runproj.*"
+#echo "${runlist[@]}" | parallel -j $HYAK_SLOTS --joblog paralleljobs.log --resume
+find run_frcprep/ -name "runproj.*" | parallel -j $HYAK_SLOTS --joblog paralleljobs.log --resume
+exit 0
+
+
+

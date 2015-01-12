@@ -1,0 +1,146 @@
+#!/bin/bash
+
+dryrun=0
+
+##TESTING:
+
+#/civil/hydro/mrstu/IS/sim-ulm/projects/project2/worker_syn_merged.summ.bsh wb.195001.nc /civil/hydro/mrstu/IS/sim-ulm/projects/project2/control_ulm-merged.summ/LID-V1110__historical/snowbands-v1.6.16d.comp/cfg.merged.summ.cfg
+#/civil/hydro/mrstu/IS/sim-ulm/projects/project2/worker_syn_merged.summ.bsh wb.195309.nc /civil/hydro/mrstu/IS/sim-ulm/projects/project2/control_ulm-merged.summ/CSIRO-Mk3-6-0__historical/snowbands-v1.6.16d.comp/cfg.merged.summ.cfg
+
+# provide full path to config file
+config=$2
+source $config
+
+targetfile=$1
+targetpath=$MERGELOC/$targetfile
+tbn=$(basename $targetfile ".nc")
+
+
+function exitcheck() {
+    if [ "$1" -ne 0 ]
+    then
+        echo "exitcheck: FAILED ("$1")"
+        exit "$1"
+    fi
+    
+}
+
+function wrapcmd() {
+    #echo $@
+    #echo $wcexit
+    if [ "$wcexit" -eq 0 ]
+    then
+        echo $@
+        eval "$@"
+        wcexit="$?"
+        wait
+        
+	    if [ "$wcexit" -ne 0 ]
+	    then
+            echo "failed command ("$wcexit")"
+            echo $@
+	        exit $wcexit
+        fi
+    else
+        echo "prior command failed:" $wcexit
+        echo "before "$@
+        exit $wcexit
+    fi
+    
+}
+
+
+function run_merged_summ() {
+
+###################################
+## Read merged months input data ##
+###################################
+
+if [ "$dryrun" -eq 0 ]
+then
+        
+	#ncks -O -v Rainf,Snowf,Evap $targetpath $tbn.monmean.met.nc
+	#ncks -O -v AvgSurfT $ofilemons.nc $ofilemons.tsurf.nc
+	#ncks -O -v Qs,Qsb $ofilemons.nc $ofilemons.runoff.nc
+	#ncks -O -v SoilMoist $ofilemons.nc $ofilemons.soilmoist.nc
+	#ncks -O -v SWE $ofilemons.nc $ofilemons.swe.nc
+
+    wcexit=0
+
+    ## combine flows (I've chained this but probably better to just bite the bullet and calc monmean for all vars?)
+    
+    ## Chaining would hang for a handful of months
+    #wrapcmd $CDOPATH -O selname,Rainf,Snowf,Evap,Qs,Qsb,Qsm,AvgSurfT -monmean $targetpath $SUMMLOC/$tbn.monmean.flux-temp.nc
+
+
+    if [ 1 -eq 1 ]
+    then
+
+    ## No chaining, just compute monthly means for all variables.
+    #wrapcmd $CDOPATH -O monmean $targetpath $SUMMLOC/$tbn.monmean.flux-temp.nc
+    wrapcmd $CDOPATH -O monmean $targetpath $SUMMLOC/$tbn.monmean.flux-temp.nc
+    #wrapcmd $USE_NCO/ncap -O -v -s "'Evaporation=Evap*86400.;Runoff@units=\"mm/day\"'" $SUMMLOC/$tbn.monmean.flux-temp.nc $SUMMLOC/$tbn.monmean.evap.nc    
+    
+#: <<-CMT
+    #$USE_NCO/ncrename -v Evap,Evaporation $SUMMLOC/$tbn.monmean.flux-temp.nc
+
+    #monmean.ECanop monmean.ESoil monmean.TVeg
+    wrapcmd $USE_NCO/ncap -O -v -s "'TVeg=TVeg*86400.;TVeg@units=\"mm/day\"'" $SUMMLOC/$tbn.monmean.flux-temp.nc $SUMMLOC/$tbn.monmean.TVeg.nc
+    wrapcmd $USE_NCO/ncap -O -v -s "'ESoil=ESoil*86400.;ESoil@units=\"mm/day\"'" $SUMMLOC/$tbn.monmean.flux-temp.nc $SUMMLOC/$tbn.monmean.ESoil.nc    
+    wrapcmd $USE_NCO/ncap -O -v -s "'ECanop=ECanop*86400.;ECanop@units=\"mm/day\"'" $SUMMLOC/$tbn.monmean.flux-temp.nc $SUMMLOC/$tbn.monmean.ECanop.nc
+
+
+    #wrapcmd $USE_NCO/ncap -O -v -s 'Runoff=(Qs+Qsb+Qsm)*86400.;Runoff@units="mm/day"' dummy1.nc dummy2.nc
+    #wrapcmd $USE_NCO/ncap -O -v -s 'Runoff=(Qs+Qsb+Qsm)*86400.;Runoff@units="mm/day"' dummy1.nc dummy2.nc    
+    #exitcheck 1
+    #$USE_NCO/ncap -O -v -s 'Runoff=(Qs+Qsb+Qsm)*86400.;Runoff@units="mm/day"' dummy1.nc dummy2.nc
+    #echo before ncap
+    wrapcmd $USE_NCO/ncap -O -v -s "'Runoff=(Qs+Qsb)*86400.;Runoff@units=\"mm/day\"'" $SUMMLOC/$tbn.monmean.flux-temp.nc $SUMMLOC/$tbn.monmean.combflow.nc
+    #wrapcmd $USE_NCO/ncap -O -v -s "'Runoff=(Qs+Qsb+Qsm)*86400.;Runoff@units=\"mm/day\"'" $SUMMLOC/$tbn.monmean.flux-temp.nc $SUMMLOC/$tbn.monmean.combflow.nc    
+    #exitcheck 1
+    #exitcheck "$?"
+    wrapcmd $USE_NCO/ncap -O -v -s "'Evaporation=Evap*86400.;Evaporation@units=\"mm/day\"'" $SUMMLOC/$tbn.monmean.flux-temp.nc $SUMMLOC/$tbn.monmean.evap.nc
+
+	wrapcmd $USE_NCO/ncap -O -v -s "'Precipitation=(Rainf+Snowf)*86400.;Precipitation@units=\"mm/day\"'" $SUMMLOC/$tbn.monmean.flux-temp.nc $SUMMLOC/$tbn.monmean.prec.nc
+#exit
+    wrapcmd $USE_NCO/ncap -O -v -s "'AvgSurfT=AvgSurfT-273.15;AvgSurfT@units=\"degrees Celsius\";'" $SUMMLOC/$tbn.monmean.flux-temp.nc $SUMMLOC/$tbn.monmean.tsurfC.nc
+    #$USE_NCO/ncrename -v AvgSurfT,blah $SUMMLOC/$tbn.monmean.tsurfC.nc                    
+                        
+    ## combine flows (I've chained this but probably better to just bite the bullet and calc monmean for all vars?)
+    #time $CDOPATH -O selname,Qs,Qsb,Qsm -monmean $targetpath $SUMMLOC/$tbn.monmean.flowcomps.nc
+    #time $USE_NCO/ncap -O -v -s 'Runoff=(Qs+Qsb+Qsm)*86400.;Runoff@units="mm/day"' $SUMMLOC/$tbn.monmean.flowcomps.nc $SUMMLOC/$tbn.monmean.combflow.nc
+    #rm $SUMMLOC/$tbn.monmean.flowcomps.nc
+    
+    ## get storage day1; sum soil moisture across layers.
+
+    #/sw/contrib/hydro/bin/cdo -O selname,SWE,SoilMoist,SWEVeg -selday,1 wb.195901.nc testsel.nc    
+
+    #wrapcmd $CDOPATH -O selname,SoilMoist,SWE,SWEVeg -selday,1 $targetpath $SUMMLOC/$tbn.day1.nc
+    #wrapcmd $CDOPATH -O vertsum -selname,SoilMoist $SUMMLOC/$tbn.day1.nc $SUMMLOC/$tbn.day1.soilmoist-vsum.nc
+    wrapcmd $CDOPATH -O -selday,1 $targetpath $SUMMLOC/$tbn.day1.nc
+    wrapcmd $CDOPATH -O selname,SoilMoist $SUMMLOC/$tbn.day1.nc $SUMMLOC/$tbn.day1.SoilMoist.nc
+    #wrapcmd $CDOPATH -O selname,SoilMoist $SUMMLOC/$tbn.day1.nc $SUMMLOC/$tbn.day1.SoilMoist.nc
+    wrapcmd $CDOPATH -O vertsum $SUMMLOC/$tbn.day1.SoilMoist.nc $SUMMLOC/$tbn.day1.soilmoist-vsum.nc
+        
+    #/sw/contrib/hydro/icc_14.0.2/bin/ncap -O -v -s 'SWEtotal=SWE+SWEVeg' testsel.nc sweadd.nc
+    #wrapcmd $USE_NCO/ncap -O -v -s 'SWEtotal=SWE+SWEVeg' $SUMMLOC/$tbn.day1.nc $SUMMLOC/$tbn.day1.swe-total.nc
+    wrapcmd $USE_NCO/ncap -O -v -s "'SWEtotal=SWE+SWEVeg;SWEtotal@units=\"mm\"'" $SUMMLOC/$tbn.day1.nc $SUMMLOC/$tbn.day1.swe-total.nc    
+
+    wait
+    #rm $SUMMLOC/$tbn.monmean.flux-temp.nc
+    rm $SUMMLOC/$tbn.day1.nc
+    rm $SUMMLOC/$tbn.day1.SoilMoist.nc
+    fi
+        
+#CMT
+fi
+
+}
+
+#ilog=$(basename $TARGET ".nc")
+#run_merged_summ > $CONTROL/joblogs/log_$ilog".txt"
+run_merged_summ > $CONTROL/joblogs/log_$tbn".txt" 2>&1
+
+exit $wcexit
+
+

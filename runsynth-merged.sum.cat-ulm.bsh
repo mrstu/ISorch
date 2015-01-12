@@ -1,0 +1,186 @@
+#!/bin/bash
+
+dofrontmatter=0
+
+basedir=/civil/hydro/mrstu/IS/sim-ulm/projects/prj3
+synthdir=$basedir/cfg_synth
+
+datadir=$basedir/simdata
+
+inbase=$basedir/simdata
+odir=$basedir/simdata-ulm-catted
+
+modpers=( CanESM2__historical CanESM2__rcp85 )
+runver="snowbands-v1.10"
+catid=01
+
+contbase=$basedir/control_ulm-merge.summ.cat
+
+mkdir -p $odir $contbase
+
+cd $datadir
+echo $datadir
+
+if [ $dofrontmatter -eq 1 ]
+then
+
+#
+# Get summary file prefixes expected for periods
+#
+
+cd $datadir/bcc-csm1-1-m__rcp45/nc-merge.summ/daily1var/Evaporation
+ls *.nc | cut -d. -f1-2 > $synthdir/expected_historical_1950-2005.txt
+ls *.nc | cut -d. -f1-2 > $synthdir/expected_rcp45_2006-2099.txt
+ls *.nc | cut -d. -f1-2 > $synthdir/expected_rcp85_2006-2099.txt
+
+#
+# Create expected inputs for decades
+#
+
+cd $synthdir
+for i in $(seq 195 1 200); do grep -e "full_data.$i" expected_historical_1950-2005.txt > expected_historical_decade_$i"0"-$i"9".txt; done
+mv expected_historical_decade_2000-2009.txt expected_historical_decade_2000-2005.txt 
+mv expected_rcp_decade_2000-2009.txt expected_rcp_decade_2006-2009.txt
+for i in $(seq 200 1 209 ); do grep -e "full_data.$i" expected_rcp45_2006-2099.txt > expected_rcp_decade_$i"0"-$i"9".txt; done
+
+
+fi
+
+#
+# Format catted output names
+#
+
+cd $datadir
+#find */*/*/*/*/ -maxdepth 0 -type d  > inputdirs.txt
+
+for imp in "${modpers[@]}"
+do
+
+instcont=$contbase/$imp"__"$runver"__"$catid
+echo $instcont
+
+instoutdir=$odir/$imp"__"$runver"__"$catid
+mkdir -p $instcont $instoutdir
+
+rm $instcont/inputdirs.txt
+
+# last two parts like 1/2/3/daily1var/varname/
+#TODO: use list of expected summary output for inputs here.
+find $imp/$runver/ulm-nc-merge.summ/*/*/ -maxdepth 0 -type d  >> $instcont/inputdirs.txt
+
+grep "daily1var" $instcont/inputdirs.txt  > $instcont/daily.txt
+# bcc-csm1-1-m__historical.monday1.Evaporation.nc
+grep -v "daily1var" $instcont/inputdirs.txt  > $instcont/not_daily.txt
+
+awk -F/ -v prefix=$instoutdir '{printf("%s/%s.%s.%s\n",prefix,$1,$4,$5)}' $instcont/daily.txt > $instcont/daily.catnames.txt
+awk -F/ -v prefix=$instoutdir '{printf("%s/%s.%s.%s\n",prefix,$1,$4,$5)}' $instcont/not_daily.txt > $instcont/not_daily.catnames.txt
+
+paste -d" " $instcont/daily.txt $instcont/daily.catnames.txt > $instcont/daily_inout.txt
+paste -d" " $instcont/not_daily.txt $instcont/not_daily.catnames.txt > $instcont/not_daily_inout.txt
+
+rm $instcont/master_daily_list.txt $instcont/master_monthly_list.txt
+
+for per in historical rcp45 rcp85
+do
+    case $per in        
+        historical)
+        expfile=$synthdir/expected_historical_1950-2005.txt
+        explist=$(ls $synthdir/expected_historical_decade_*.txt)
+        ;;
+        rcp45)
+        expfile=$synthdir/expected_rcp45_2006-2099.txt
+        explist=$(ls $synthdir/expected_rcp_decade_*.txt)
+        ;;
+        rcp85)
+        expfile=$synthdir/expected_rcp85_2006-2099.txt
+        explist=$(ls $synthdir/expected_rcp_decade_*.txt)        
+        ;;
+    esac
+
+    grep -e "$per" $instcont/daily_inout.txt > $instcont/daily_inout_$per.txt
+    grep -e "$per" $instcont/not_daily_inout.txt > $instcont/not_daily_inout_$per.txt
+
+	for iexp in $explist
+	do
+	    idaterange=$(basename $iexp ".txt" | cut -d"_" -f4)
+	    while read line
+	    do
+	        var=$(echo $line | awk '{print $1}' | awk -F/ '{print "."$(NF-1)".nc"}')
+	        echo $inbase/$line.$idaterange.nc $iexp $var >> $instcont/master_daily_list.txt
+        done < $instcont/daily_inout_$per.txt
+    done
+
+    idaterange=$(basename $expfile ".txt" | cut -d"_" -f3)
+    while read line
+    do
+        var=$(echo $line | awk '{print $1}' | awk -F/ '{printf(".%s.%s.nc",$(NF-1),$(NF-2))}')
+        echo $inbase/$line.$idaterange.nc $expfile $var >> $instcont/master_monthly_list.txt
+    done < $instcont/not_daily_inout_$per.txt
+
+
+done
+
+cat $instcont/master_daily_list.txt $instcont/master_monthly_list.txt > $instcont/masterargs.txt
+
+#
+# Move into control directory and form qsub scripts
+#
+
+cd $instcont
+
+# For 1 gcm_scen about 161 operations.
+NUMJOBS=33
+rm masterargs.sub_* mnsubmit.ctl_??.qsub
+split -l $NUMJOBS -d masterargs.txt masterargs.sub_
+
+BUNDLE_NAMESTUB=bundle_cat
+CONTROL=$instcont
+QNAME=mnsubmit.ctl_
+HYAK_SLOTS=16
+BINWRAPPER=$basedir/catmons.bsh
+JOB_MODULES="icc_14.0.2 netcdf_4.3.1.1-icc_14.0.2"
+
+########################
+## CREATE QSUB SCRIPT ##
+########################
+
+for isub in $(ls masterargs.sub_*)
+do
+
+subID=$(echo $isub | awk -F_ '{print $2}')
+ARGS_SUB_NODE=$isub
+#JOBLOG_NODE=$JOBLOG".txt"
+JOBLOG_NODE="joblog_"$subID 
+BUNDLE_NAME=$BUNDLE_NAMESTUB"_"$subID
+#mkdir $JOBLOG_NODE/
+
+fqsub=$CONTROL/$QNAME$subID.qsub
+
+cat >$fqsub <<EOL
+#PBS -N $BUNDLE_NAME
+#PBS -l nodes=1:ppn=16,mem=40gb
+#PBS -l walltime=03:55:00
+##PBS -m abe -M mrstu@u.washington.edu
+#PBS -o $CONTROL
+#PBS -j oe
+#PBS -d $CONTROL
+HYAK_SLOTS=${HYAK_SLOTS}
+module load $JOB_MODULES
+#cat $CONTROL/masterargs.txt | parallel -j $HYAK_SLOTS --joblog $JOBLOG_NODE --colsep ' ' --resume-failed $BINWRAPPER {}
+cat $CONTROL/$ARGS_SUB_NODE | parallel -j $HYAK_SLOTS --joblog $JOBLOG_NODE --colsep ' ' --resume-failed $BINWRAPPER {}
+
+exit 0
+EOL
+
+chmod 744 $fqsub
+#chmod 744 $CONTROL/summ-merge-tiles.qsub
+
+done
+
+echo "Now submit job to run summaries on merged daily tile data:"
+echo mqsub $CONTROL/$QNAME'*'.qsub
+
+cd -
+
+done
+  

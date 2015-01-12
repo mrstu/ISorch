@@ -1,0 +1,169 @@
+#!/bin/bash
+
+#PBS -N bundle-frcprep
+#PBS -l nodes=1:ppn=16,feature=16core,mem=110gb
+#PBS -l walltime=24:00:00
+#PBS -m abe -M mrstu@u.washington.edu
+#PBS -o /civil/hydro/mrstu/IS/sim-ulm/projects/project2/joblog_frcprep
+#PBS -j oe
+#PBS -d /civil/hydro/mrstu/IS/sim-ulm/projects/project2
+
+HYAK_SLOTS=16
+
+#gcms=( CNRM-CM5 CSIRO-Mk3-6-0 CanESM2 HadGEM2-CC365 HadGEM2-ES365 IPSL-CM5A-MR NorESM1-M )
+#gcms=( CSIRO-Mk3-6-0 CanESM2 HadGEM2-CC365 HadGEM2-ES365 IPSL-CM5A-MR NorESM1-M )
+#batname="frcbat1" #scens=( historical rcp45 rcp85 ) #gcms=( CNRM-CM5 CSIRO-Mk3-6-0 )
+#batname="frcbat2"; scens=( rcp45 rcp85 ); gcms=( CNRM-CM5 )
+#batname="frcbat3"; scens=( historical rcp45 rcp85 ); gcms=( HadGEM2-CC365 IPSL-CM5A-MR )
+#batname="frcbat3"; scens=( historical rcp45 rcp85 ); gcms=( HadGEM2-CC365 )
+#batname="frcbat4"; scens=( historical rcp45 rcp85 ); gcms=( CNRM-CM5 CSIRO-Mk3-6-0 )
+#batname="frcbat5"; scens=( historical rcp45 rcp85 ); gcms=( HadGEM2-ES365 IPSL-CM5A-MR )
+#batname="frcbat6"; scens=( historical rcp45 rcp85 ); gcms=( NorESM1-M )
+#batname="frcbat7"; scens=( historical rcp45 rcp85 ); gcms=( bcc-csm1-1-m CanESM2 CCSM4 MIROC5 )
+#batname="frcbat8"; scens=( historical rcp45 rcp85 )
+#gcms=( CSIRO-Mk3-6-0 CanESM2 CNRM-CM5 IPSL-CM5A-MR MIROC5 NorESM1-M CCSM4 bcc-csm1-1-m HadGEM2-ES365 HadGEM2-CC365 )
+#gcms=( CanESM2 CNRM-CM5 MIROC5 CCSM4 )
+
+## 20141027: last week I updated the global template and added initstate chaining, etc.
+#gcms=( CCSM4 )
+
+## 20141027: so these had to be updated.
+#batname="frcbat8"; scens=( historical rcp45 rcp85 )
+#gcms=( CSIRO-Mk3-6-0 CanESM2 CNRM-CM5 IPSL-CM5A-MR MIROC5 NorESM1-M bcc-csm1-1-m HadGEM2-ES365 HadGEM2-CC365 )
+
+## 20141210: using historical GCM templates so vicSim, vicDisagg will only produce 1950-2005 though the 1 day ascii forcings should span 1950-2010.
+batname="frcbat9"; scens=( historical )
+gcms=( livneh-CANv1.1-USv1.0 )
+
+
+#gcms=( bcc-csm1-1-m )
+#batname="frcbat8"; scens=( historical )
+#gcms=( NorESM1-M )
+
+dateid=$(date +"%F-%H%M")
+mkdir -p run_frcprep/archives/$dateid
+
+
+#scens=( historical )
+version=v2.3
+projectname=prj3
+cwd=$(pwd -P)
+cfgdir=$cwd/cfg_frcprep
+logcfgdir=$cwd/log_cfg_frcprep
+mkdir $cfgdir $logcfgdir run_frcprep
+runlist=()
+
+#TODO: This file can be used to constrain spatial extent of processing
+tilelist=$cwd/tile16d-corners-llur.txt
+#tilelist=$cwd/tiled16d-corners-llur.waglactite.txt
+#tilelist=$cwd/tiled16d-corners-llur.hood.not_waglactite.txt
+#tilelist=$cwd/sorted.tile16d-done.txt  #$cwd/tiled16d-restnotdone.txt
+
+## Get tiles that weren't included in special selection
+#cat tiled16d-corners-llur.{hood,waglactite}.txt > tiled16d-done.txt
+#sort -k1 tile16d-corners-llur.txt | uniq  > sorted.tile16d-corners-llur.txt
+#sort -k1 tiled16d-done.txt | uniq  > sorted.tile16d-done.txt
+#comm sorted.tile16d-corners-llur.txt sorted.tile16d-done.txt -23 > tiled16d-restnotdone.txt
+
+## from /unpack_forcings, archiving the daily forcings
+##for i in $(grep -v "HadGEM2-CC365" ../GCM_list.txt); do ( tar -czvf $i.tar.gz $i"__"*/*/*/*/frc1d > .log_$i.txt 2>&1 & ) ; done
+
+
+for gcm in "${gcms[@]}"
+do
+for scen in "${scens[@]}"
+do
+
+    newcfg=$cfgdir/$gcm"__"$scen"__"$version".cfg"
+    newlog=$logcfgdir/log__$gcm"__"$scen"__"$version".cfg"
+            
+    if [ "$scen" = "historical" ]
+    then
+        cfg=master__GCM__historical__gmt-smooth.cfg
+    else
+        cfg=master__GCM__RCP__gmt-smooth.cfg
+    fi
+
+    sed -e 's|xxSCENARIOxx|'"$scen"'|g' \
+	    -e 's|xxDATASRCxx|'"$gcm"'|g' \
+	    -e 's|xxPROJECTNAMExx|'"$projectname"'|g' \
+	    -e 's|xxFRCVERSIONxx|'"$version"'|g' \
+        -e 's|xxTILELISTxx|'"$tilelist"'|g' $cfg > $newcfg
+
+    echo 'Before master_frcprep.bsh' $newcfg
+    ## Setup control files if they don't exist
+    #if [ ! -f $cfgdir/$gcm"__"$scen"__"$version".cfg" ]
+    #then
+        #    echo 'Master_frcprep.bsh starting'
+    ./master_frcprep.bsh $newcfg > $newlog 2>&1 &
+    #fi
+
+    if [ 0 -eq 1 ]
+    then
+    ### HACK: REUSE SPLIT SOIL FILES. ###
+
+    # Also see vic_prep_soilfile.bsh where I've commented out the first creation of tiled soils
+    for i in $(ls -d $(pwd -P)/control_vic/CCSM4__historical/16_*)
+    do
+        tiledir=$(basename $i)
+        for fn in soil_avail.txt snow_avail.txt veg_avail.txt
+        do
+            # link or copy?
+            ln -s $i/$fn control_vic/$gcm"__"$scen/$tiledir/$fn
+        done
+    done
+    ### END HACK ###
+    fi
+
+    echo 'After master_frcprep.bsh'
+
+    ## Now create executable scripts
+    bundlename=bundle-$gcm"__"$scen"__"$version
+    runscr=run_frcprep/runproj.$gcm"__"$scen"__"$version".qsub"
+    mv $runscr run_frcprep/archives/$dateid
+    
+cat >$runscr.tmp <<EOL
+#!/bin/bash
+
+#PBS -N $bundlename
+#PBS -l nodes=1:ppn=16,feature=16core,mem=110gb
+#PBS -l walltime=24:00:00
+#PBS -m abe -M mrstu@u.washington.edu
+#PBS -o /civil/hydro/mrstu/IS/sim-ulm/projects/project2/joblog_frcprep
+#PBS -j oe
+#PBS -d /civil/hydro/mrstu/IS/sim-ulm/projects/project2
+
+HYAK_SLOTS=16
+module load icc_14.0.2 netcdf_4.3.1.1-icc_14.0.2
+
+EOL
+
+
+    cat $runscr.tmp runproj.template.bsh > $runscr
+    rm $runscr.tmp
+                
+    #sed 's|xxBUNDLEIDxx|'"$bundlename"'|g' runproj.template.bsh > $runscr
+    sed -i 's|xxCONFIGxx|'"$newcfg"'|g' $runscr
+    # This isn't setup for backfill
+    #qsub -q bf runproj.$gcm"__"$scen"__"$version".bsh"
+    #qsub runproj.$gcm"__"$scen"__"$version".bsh"
+    chmod 744 $runscr
+    runlist=( "${runlist[@]}" $runscr )    
+    
+#TODO: run the job setup scripts here rather than later (run_frcprep/runproj.$gcm"__"$scen"__"$version".qsub")
+
+done
+done
+
+
+#### Below was for running from scripts in directory (an approach I find cumbersome) ###
+wait
+
+exit
+
+#find run_frcprep/ -name "runproj.*" | parallel -j $HYAK_SLOTS --joblog paralleljobs.log --resume
+echo "${runlist[@]}" | parallel -j $HYAK_SLOTS --joblog paralleljobs_$batname".log" --resume-failed
+exit 0
+
+
+

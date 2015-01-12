@@ -1,0 +1,117 @@
+#!/bin/bash
+
+
+#gcm=CSIRO-Mk3-6-0; simid=snowbands-v1.6.16d.comp.NT; for scen in historical rcp45 rcp85; do ./runsynth-tile.merge.bsh $gcm $scen $simid; done
+#gcm=CNRM-CM5; simid=snowbands-v1.6.16d.comp.NT; for scen in historical rcp45 rcp85; do ./runsynth-tile.merge.bsh $gcm $scen $simid; done
+#gcm=IPSL-CM5A-MR; simid=snowbands-v1.6.16d.comp.NT; for scen in historical rcp45 rcp85; do ./runsynth-tile.merge.bsh $gcm $scen $simid; done
+
+#gcm=CNRM-CM5; simid=snowbands-v1.6.16d.comp.NT; for scen in historical rcp45 rcp85; do (cd $gcm"__"$scen/$simid; echo $pwd; jlbad) done
+#gcm=IPSL-CM5A-MR; simid=snowbands-v1.6.16d.comp.NT; for scen in historical rcp45 rcp85; do (cd $gcm"__"$scen/$simid; echo $pwd; jlbad) done
+#gcm=LID-V1110; simid=snowbands-v1.6.16d.comp.NT; ./runsynth-tile.merge.bsh $gcm historical $simid 
+
+## depr:  login2 { /civil/hydro/mrstu/IS/sim-ulm/project1 }-> ./run_tilemerge.bsh $(pwd)/cfg_tilemerge_LIDV1110-1950s.bsh
+
+GCM=$1
+SCEN=$2
+SIMID=$3
+RUNNAME=$GCM"__"$SCEN
+
+#simcfg=cfg.sim.bsh
+
+# provide full path to config file
+cd cfg_synth
+simcfg=cfg.sim.$RUNNAME.$SIMID.bsh
+cat >$simcfg <<EOL
+RUNNAME=$RUNNAME
+SIMID=$SIMID
+EOL
+
+source $simcfg
+source cfg.proj.bsh
+source cfg.tile.daily.merge.bsh
+CFG=$CONTROL/tile.merge.cfg
+mkdir -p $CONTROL/joblogs
+cat $simcfg cfg.proj.bsh cfg.tile.daily.merge.bsh > $CFG
+cd ..
+
+#############################
+## CREATE MASTER ARGS FILE ##
+#############################
+
+#MERGELOC=$DATA/ulm-nc-merge
+QNAME="mnsubmit.ctl_" #merge-daily-tiles_
+
+mkdir -p $MERGELOC
+mkdir -p $CONTROL/joblogs
+
+#echo $DATA/$TILEDATA/
+#tiledirs=($(ls -d $DATA/$TILEDATA/*))
+##tiles=($(ls "${tiledirs[0]}"/wb.*.nc))
+#timerec=($(ls "${tiledirs[0]}"/$TILELOC/wb.*.nc))
+#timerec=($(ls $DATA/$TILEDATA/$TILELOC/wb.*.nc))
+
+rm $CONTROL/masterargs.txt
+rm $CONTROL/$QNAME*.qsub
+
+case $SCEN in
+    historical)
+    WBEXP=$WBEXP_HIST
+    ;;
+    rcp45)
+    WBEXP=$WBEXP_RCP45    
+    ;;
+    rcp85)
+    WBEXP=$WBEXP_RCP45    
+    ;;
+esac 
+
+## create list pairing expected output filename and merging config file path
+awk -v cfgpath=$CFG '{print $1, cfgpath}' $WBEXP >> $CONTROL/masterargs.txt
+#for trec in "${timerec[@]}"
+#do
+#        echo $(basename $trec) $CFG >> $CONTROL/masterargs.txt
+#done
+
+cd $CONTROL
+#split -l 22 -d $ARGS_MASTER masterargs.sub_
+split -l $NUMJOBS -d masterargs.txt masterargs.sub_
+
+
+########################
+## CREATE QSUB SCRIPT ##
+########################
+
+for isub in $(ls masterargs.sub_*)
+do
+
+subID=$(echo $isub | awk -F_ '{print $2}')
+ARGS_SUB_NODE=$isub
+#JOBLOG_NODE=$JOBLOG".txt"
+JOBLOG_NODE="joblog_"$subID 
+BUNDLE_NAME=$BUNDLE_NAMESTUB"_"$subID
+#mkdir $JOBLOG_NODE/
+
+fqsub=$CONTROL/$QNAME$subID.qsub
+
+cat >$fqsub <<EOL
+#PBS -N $BUNDLE_NAME
+#PBS -l nodes=1:ppn=16,mem=40gb
+#PBS -l walltime=03:55:00
+##PBS -m abe -M mrstu@u.washington.edu
+#PBS -o $CONTROL
+#PBS -j oe
+#PBS -d $CONTROL
+HYAK_SLOTS=${HYAK_SLOTS}
+module load $JOB_MODULES
+#cat $CONTROL/masterargs.txt | parallel -j $HYAK_SLOTS --joblog $JOBLOG_NODE --colsep ' ' --resume-failed $BINWRAPPER {}
+cat $CONTROL/$ARGS_SUB_NODE | parallel -j $HYAK_SLOTS --joblog $JOBLOG_NODE --colsep ' ' --resume-failed $BINWRAPPER {}
+
+exit 0
+EOL
+
+chmod 744 $fqsub
+#chmod 744 $CONTROL/summ-merge-tiles.qsub
+
+done
+
+echo mqsub $CONTROL/mnsubmit.ctl_'*'.qsub

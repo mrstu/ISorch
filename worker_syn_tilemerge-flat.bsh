@@ -1,0 +1,53 @@
+#!/bin/bash
+
+dryrun=0
+
+#n0561 { /civil/hydro/mrstu/IS/sim-ulm/projects/project2/control_ulm-merge/CNRM-CM5__rcp45/snowbands-v1.6.16d.comp/ }->     
+    #    /civil/hydro/mrstu/IS/sim-ulm/projects/project2/worker_syn_tilemerge-flat.bsh wb.200601.nc \
+    #    /civil/hydro/mrstu/IS/sim-ulm/projects/project2/control_ulm-merge/CNRM-CM5__rcp45/snowbands-v1.6.16d.comp/tile.merge.cfg
+
+#/civil/hydro/mrstu/IS/sim-ulm/projects/project2/worker_syn_tilemerge-flat.bsh wb.200601.nc /civil/hydro/mrstu/IS/sim-ulm/projects/project2/control_ulm-merge/CNRM-CM5__rcp45/snowbands-v1.6.16d.comp/tile.merge.cfg
+
+
+# provide full path to config file
+config=$2
+source $config
+
+TARGET=$1
+
+function runmerge() {
+
+###############################################
+## Read input data, create ulm control files ##
+###############################################
+
+echo $DATA/$TILEDATA
+echo $TILELOC/$TARGET
+#tiles=($(ls -d $DATA/$TILEDATA/*/$TILELOC/$TARGET))
+#tiles=($(ls -d $TILELOC/*/$TARGET))
+cd $DATA/$TILEDATA
+#tiles=($(ls -d $DATA/$TILEDATA/16_*/$TILELOC/$TARGET))
+tiles=($(ls -d 16_*/$TILELOC/$TARGET))
+#time $USE_PYTHON $NCCONVERTER --dir_data $DATA/$TILEDATA --data_name $(ls 16_*/$TILELOC/$TARGET) -o $MERGELOC -p $TARGET
+$USE_PYTHON $NCCONVERTER --data_name "${tiles[@]}" -o $MERGELOC -p $TARGET
+$USE_NCKS -O --mk_rec_dmn Time $MERGELOC/$TARGET $MERGELOC/$TARGET
+
+
+
+}
+
+ilog=$(basename $TARGET ".nc")
+runmerge > $CONTROL/joblogs/log_$ilog".txt"
+
+#EXIT_STATUS="$?"
+#if [ "$EXIT_STATUS" -eq 0 ]
+#then
+    ##TODO: make constituent tile removal optional.
+    #echo "Removing constituent tiles 16_*/$TILELOC/$TARGET"
+    #rm "${tiles[@]}"
+    #exit 0
+#else
+    #echo "FAILED: "$USE_NCKS -O --mk_rec_dmn Time $MERGELOC/$TARGET $MERGELOC/$TARGET
+    #exit "$EXIT_STATUS"
+#fi       
+

@@ -1,0 +1,22 @@
+#!/bin/bash
+
+# ulm config templates and time files
+#mkdir config-ulm
+
+# GCM/scen/SIMID configuration instances
+#mkdir cfg_ulm_setup 
+
+dir_ulm_tools="/civil/hydro/mrstu/IS/sim-ulm/tile-sim-tools/ulm-sim-run-v1.0"
+
+## from project2/
+## setup tethered configuration files
+#./setup_ulm_job.bsh cfg_ulm_setup/HadGEM2-CC365__historical_snowbands-v1.6.16d.cfg
+## submit jobs by executing one script
+#/civil/hydro/mrstu/IS/sim-ulm/projects/project2/control_ulm/HadGEM2-CC365__historical/snowbands-v1.6/run_q-hydro.bsh
+
+ # ./setup_ulm_job.no_tether.bsh cfg_ulm_setup/LID-V1110__historical_snowbands-v1.8.16d.wb10mm.comp.cfg
+
+jobcfg=$1 #cfg_ulm_setup/LID-V1110__historical_snowbands-v1.6.full.cfg
+
+#../../tools/ulm-sim-run-v1.0/gen_ulm-sim_controls.no_tether.bsh $jobcfg
+$dir_ulm_tools/gen_ulm-sim_controls.no_tether.bsh $jobcfg

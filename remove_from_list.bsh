@@ -1,0 +1,68 @@
+#!/bin/bash
+
+dofrontmatter=0
+
+removalfile=$1
+remid=$(basename $removalfile ".txt")
+
+#datadir=/civil/hydro/mrstu/IS/sim-ulm/projects/prj3
+#inbase=/civil/hydro/mrstu/IS/sim-ulm/projects/prj3
+
+datadir=$(pwd -P)
+inbase=$(pwd -P)
+
+cd $datadir
+
+if [ $dofrontmatter -eq 1 ]
+then
+
+echo Front matter: $dofrontmatter
+##THESE WILL BE REMOVED##
+#login2 { /civil/hydro/mrstu/IS/sim-ulm/projects/prj3/simdata-vic }-> ls -d *__*/nc-merge.summ/*/ | grep -v "livneh" > removal_gcms.txt
+
+fi
+
+
+BUNDLE_NAMESTUB=bundle_removals_$remid
+CONTROL=$inbase
+QNAME=ctl.rm_$remid
+HYAK_SLOTS=16
+BINWRAPPER="rm -rf"
+#JOB_MODULES="icc_14.0.2 netcdf_4.3.1.1-icc_14.0.2"
+
+########################
+## CREATE QSUB SCRIPT ##
+########################
+
+subID=00
+ARGS_SUB_NODE=$removalfile #removals.txt
+#JOBLOG_NODE=$JOBLOG".txt"
+JOBLOG_NODE="joblog.rm_"$remid"_"$subID 
+BUNDLE_NAME=$BUNDLE_NAMESTUB"_"$subID
+#mkdir $JOBLOG_NODE/
+
+fqsub=$CONTROL/$QNAME$subID.qsub
+
+cat >$fqsub <<EOL
+#PBS -N $BUNDLE_NAME
+#PBS -l nodes=1:ppn=16,mem=40gb
+#PBS -l walltime=24:00:00
+##PBS -m abe -M mrstu@u.washington.edu
+#PBS -o $CONTROL
+#PBS -j oe
+#PBS -d $CONTROL
+HYAK_SLOTS=${HYAK_SLOTS}
+#module load $JOB_MODULES
+#cat $CONTROL/masterargs.txt | parallel -j $HYAK_SLOTS --joblog $JOBLOG_NODE --colsep ' ' --resume-failed $BINWRAPPER {}
+cat $CONTROL/$ARGS_SUB_NODE | parallel -j $HYAK_SLOTS --joblog $JOBLOG_NODE --colsep ' ' --resume-failed $BINWRAPPER {}
+
+exit 0
+EOL
+
+chmod 744 $fqsub
+#chmod 744 $CONTROL/summ-merge-tiles.qsub
+
+echo "Now submit job to run summaries on merged daily tile data:"
+echo mqsub $CONTROL/$QNAME'*'.qsub
+
+  
